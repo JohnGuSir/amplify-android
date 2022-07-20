@@ -32,6 +32,8 @@ import com.amplifyframework.auth.AuthUser
 import com.amplifyframework.auth.AuthUserAttribute
 import com.amplifyframework.auth.AuthUserAttributeKey
 import com.amplifyframework.auth.cognito.helpers.JWTParser
+import com.amplifyframework.auth.cognito.options.AWSCognitoAuthSignInOptions
+import com.amplifyframework.auth.cognito.options.AuthFlowType
 import com.amplifyframework.auth.options.AuthConfirmResetPasswordOptions
 import com.amplifyframework.auth.options.AuthConfirmSignInOptions
 import com.amplifyframework.auth.options.AuthConfirmSignUpOptions
@@ -338,7 +340,13 @@ internal class RealAWSCognitoAuthPlugin(
         onSuccess: Consumer<AuthSignInResult>,
         onError: Consumer<AuthException>
     ) {
-        signIn(username, password, AuthSignInOptions.defaults(), onSuccess, onError)
+        signIn(
+            username,
+            password,
+            AWSCognitoAuthSignInOptions.builder().authFlowType(AuthFlowType.USER_SRP_AUTH).build(),
+            onSuccess,
+            onError
+        )
     }
 
     private fun _signIn(
@@ -353,11 +361,15 @@ internal class RealAWSCognitoAuthPlugin(
             { authState ->
                 when (val authNState = authState.authNState) {
                     is AuthenticationState.SigningIn -> {
+                        //TODO: Change this to error of the signinState instead of the underlying state and test
                         val srpSignInState = authNState.signInState?.srpSignInState
                         if (srpSignInState is SRPSignInState.Error) {
                             token?.let(authStateMachine::cancel)
                             onError.accept(
-                                CognitoAuthExceptionConverter.lookup(srpSignInState.exception, "Sign in failed.")
+                                CognitoAuthExceptionConverter.lookup(
+                                    srpSignInState.exception,
+                                    "Sign in failed."
+                                )
                             )
                         }
                     }
@@ -555,7 +567,7 @@ internal class RealAWSCognitoAuthPlugin(
                                             "Failed to fetch identity.",
                                             fetchIdentityState.exception,
                                             "Sign in or enable guest access. See the attached exception for more" +
-                                                " details."
+                                                    " details."
                                         )
                                     )
                                 }
